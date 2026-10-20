@@ -1,0 +1,10 @@
+import http from 'node:http';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { handleApi, root, allowed } from './api.mjs';
+const port=Number(process.env.PORT||4310);
+const output=path.join(root,'dist/client');
+const types={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json','.svg':'image/svg+xml','.png':'image/png','.ico':'image/x-icon','.woff':'font/woff','.woff2':'font/woff2','.ttf':'font/ttf','.mjs':'text/javascript; charset=utf-8'};
+const server=http.createServer(async(req,res)=>{if(req.url==='/api/shutdown'&&req.method==='POST'){if(!allowed(req)){res.writeHead(403);res.end();return;}res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify({ok:true}));server.close(()=>process.exit(0));setTimeout(()=>process.exit(0),1200);return;}if(await handleApi(req,res))return;try{if(req.method!=='GET'&&req.method!=='HEAD'){res.writeHead(405);res.end();return;}let pathname=decodeURIComponent(new URL(req.url,'http://127.0.0.1').pathname);const file=path.resolve(output,'.'+(pathname==='/'?'/index.html':pathname));if(!file.startsWith(output+path.sep)){res.writeHead(403);res.end();return;}const buffer=await fs.readFile(file);res.writeHead(200,{'Content-Type':types[path.extname(file)]||'application/octet-stream','X-Content-Type-Options':'nosniff','Cache-Control':'no-cache'});res.end(req.method==='HEAD'?undefined:buffer);}catch{res.writeHead(404,{'Content-Type':'text/plain'});res.end('Not found. Run npm run build before starting the app.');}});
+server.listen(port,'127.0.0.1',()=>console.log(`CV Studio: http://127.0.0.1:${port}`));
+server.on('error',e=>{console.error(e.code==='EADDRINUSE'?`Port ${port} is in use. CV Studio may already be running.`:e.message);process.exitCode=1;});

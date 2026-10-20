@@ -1,0 +1,17 @@
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+data/
+.wrangler/
+*.log
+tmp/
+
+# Local build caches and editor/deployment metadata
+.next/
+.vinext/
+.openai/
+*.tsbuildinfo
+.DS_Store
+Thumbs.db
