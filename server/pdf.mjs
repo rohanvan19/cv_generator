@@ -2,7 +2,7 @@ import PDFDocument from 'pdfkit';
 import path from 'node:path';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { cvLabels, text, entrySectionIds, ordered, dateRange, formatBirthDate, employmentTypeLabel } from '../lib/model.ts';
+import { cvLabels, text, entryGroups, sectionLabel, ordered, dateRange, formatBirthDate, employmentTypeLabel } from '../lib/model.ts';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 export async function createPdf(profile,{coverLetter,company='',role=''}={}){
  const lang=profile.settings.language;const labels=cvLabels[lang];
@@ -94,13 +94,15 @@ export async function createPdf(profile,{coverLetter,company='',role=''}={}){
  y=Math.max(y,portrait?166:134)+pt(2);
  if(coverLetter){y+=pt(20);if(company)paragraph(company,left,507,{bold:true});if(role){y+=pt(10);paragraph(role,left,507,{bold:true});}y+=pt(20);paragraph(coverLetter);}
  else {
+  const groups=new Map(entryGroups(profile).map(group=>[group.id,group]));
   for(const section of profile.settings.sectionOrder){
    if(section==='summary'){if(profile.settings.showSummary&&text(profile.summary,lang)){heading(labels.summary);paragraph(text(profile.summary,lang));}continue;}
-   if(entrySectionIds.includes(section)){
-    const entries=section==='projects'?profile[section].filter(entry=>entry.included):ordered(profile[section]);if(!entries.length)continue;heading(labels[section]);
+   if(groups.has(section)){
+    const group=groups.get(section);if(!group.included)continue;
+    const entries=section==='projects'?group.entries.filter(entry=>entry.included):ordered(group.entries);if(!entries.length)continue;heading(sectionLabel(profile,section,lang));
     for(const entry of entries){
      room(pt(65));const rowY=y;setFont(false,8);doc.fillColor('#677487').text(dateRange(entry,lang),left,y,{width:dateWidth});
-     const type=section==='experience'?employmentTypeLabel(entry.employmentType||'',lang):'';
+     const type=section==='experience'||section.startsWith('custom:')?employmentTypeLabel(entry.employmentType||'',lang):'';
      paragraph([text(entry.title,lang),type].filter(Boolean).join(' · '),bodyX,bodyWidth,{bold:true});
      const org=[text(entry.organization,lang),text(entry.location,lang)].filter(Boolean).join(' · ');if(org)paragraph(org,bodyX,bodyWidth,{color:'#586576',size:9});
      const description=text(entry.description,lang);if(description){y+=pt(5);for(const bullet of description.split('\n').filter(value=>value.trim())){room(lineHeight);setFont(false,10);doc.fillColor('#526074').text('•',bodyX,y,{lineBreak:false});paragraph(bullet.replace(/^\s*[-•]\s*/,''),bodyX+11,bodyWidth-11);y+=pt(2);}}

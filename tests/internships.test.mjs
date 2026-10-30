@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import PDFDocument from 'pdfkit';
-import {blankWorkspace,blankProfile,newEntry,newApplication,workspaceSchema,profileSchema,defaultSectionOrder,cvLabels,profileTextFields,profileChanges,applyProfileChanges,missingTranslations,matchJob} from '../lib/model.ts';
+import {blankWorkspace,blankProfile,newEntry,newApplication,workspaceSchema,profileSchema,defaultSectionOrder,cvLabels,profileTextFields,profileChanges,applyProfileChanges,missingTranslations} from '../lib/model.ts';
 import {translateProfile} from '../server/translation.mjs';
 import {createPdf} from '../server/pdf.mjs';
 
@@ -51,7 +51,7 @@ test('internship entries survive backup round trips and independent application 
  assert.equal(profile.internships.length,1);
 });
 
-test('internship text participates in translation, individual acceptance and included requirement coverage',async()=>{
+test('internship text participates in translation, individual acceptance and missing-translation warnings',async()=>{
  const profile=blankProfile();profile.internships=[internship()];
  const translations=Object.fromEntries(profileTextFields(profile).filter(field=>field.section==='internships').map(field=>[field.key,field.value.de]));
  for(const field of profileTextFields(profile))if(field.section==='internships')field.value.de='';
@@ -71,11 +71,8 @@ test('internship text participates in translation, individual acceptance and inc
  assert.equal(accepted.internships[0].title.de,'');
  assert.deepEqual(accepted.internships[0].organization,profile.internships[0].organization);
  assert.equal(profileChanges(profile,accepted,'en').length,0);
- const matched=matchJob(profile,'Python experience required');
- assert(matched.details.matched.find(item=>item.term==='Python').evidence.some(e=>e.section==='internships'));
  profile.internships[0].included=false;
  assert.equal(missingTranslations(profile,'de'),0);
- assert(matchJob(profile,'Python experience required').missing.includes('Python'));
 });
 
 test('PDF renders bilingual internship sections in the chosen section order with newest included entries first',async()=>{

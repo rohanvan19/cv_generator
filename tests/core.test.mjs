@@ -4,7 +4,7 @@ import http from 'node:http';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import {blankWorkspace,blankProfile,demoProfile,newApplication,newEntry,matchJob,hasTerm,tailorLocally,ordered,missingTranslations,workspaceSchema,defaultSectionOrder,profileChanges,applyProfileChanges,formatBirthDate,employmentTypeLabel,profileTextFields} from '../lib/model.ts';
+import {blankWorkspace,blankProfile,demoProfile,newApplication,newEntry,ordered,missingTranslations,workspaceSchema,defaultSectionOrder,profileChanges,applyProfileChanges,formatBirthDate,employmentTypeLabel,profileTextFields} from '../lib/model.ts';
 
 test('application snapshots are independent of master profile and of each other',()=>{
  const master=demoProfile();
@@ -17,51 +17,23 @@ test('application snapshots are independent of master profile and of each other'
  assert.equal(master.photo.x,50);
 });
 
-test('accepted AI suggestions apply individually without changing declined fields',()=>{
+test('accepted translations apply individually without changing declined fields',()=>{
  const before=demoProfile();
  before.projects=[{...newEntry(),id:'project-one',title:{en:'Automation project',de:'Automatisierungsprojekt'},description:{en:'Built a Python utility.',de:'Ein Python-Werkzeug entwickelt.'}}];
  const after=structuredClone(before);
- after.experience[0].description={en:'Tailored experience wording.',de:'Angepasste Berufserfahrung.'};
- after.projects[0].description={en:'Tailored project wording.',de:'Angepasste Projektbeschreibung.'};
+ after.experience[0].description={en:'Translated experience wording.',de:'Übersetzte Berufserfahrung.'};
+ after.projects[0].description={en:'Translated project wording.',de:'Übersetzte Projektbeschreibung.'};
  after.skills[0].name={en:'SQL, Python',de:'SQL, Python'};
- const changes=profileChanges(before,after,'en');
+ const changes=profileChanges(before,after,'de');
  assert.deepEqual(new Set(changes.map(change=>change.section)),new Set(['experience','projects','skills']));
  const skillChange=changes.find(change=>change.section==='skills');
- const applied=applyProfileChanges(before,after,[skillChange.key]);
- assert.deepEqual(applied.skills[0].name,after.skills[0].name);
+ const applied=applyProfileChanges(before,after,[skillChange.key],'de');
+ assert.equal(applied.skills[0].name.de,after.skills[0].name.de);
+ assert.equal(applied.skills[0].name.en,before.skills[0].name.en);
  assert.deepEqual(applied.experience[0].description,before.experience[0].description);
  assert.deepEqual(applied.projects[0].description,before.projects[0].description);
  assert.deepEqual(applied.summary,before.summary);
 });
-test('requirement matcher separates direct, related and missing evidence with sources',()=>{
- assert.equal(hasTerm('Use C++ and C# daily','C++'),true);
- assert.equal(hasTerm('JavaScript developer','Java'),false);
- assert.equal(hasTerm('digital products','Git'),false);
- const p=demoProfile();
- const result=matchJob(p,'Python, SQL, Kubernetes and Deutsch B2 required.');
- assert(result.matched.includes('Python'));
- assert(result.matched.includes('German'));
- assert(result.missing.includes('Kubernetes'));
- assert(result.details.matched.find(item=>item.term==='German').evidence.some(source=>source.section==='languages'));
- const related=matchJob(p,'English and strong communication skills required.');
- assert(related.matched.includes('English'));
- assert(related.related.includes('Communication'));
- assert.equal(related.missing.includes('Communication'),false);
- assert(related.details.matched.find(item=>item.term==='English').evidence.some(source=>source.section==='languages'));
- assert(related.details.related.find(item=>item.term==='Communication').evidence.some(source=>source.section==='experience'));
- const gap=matchJob(p,'Leadership required.');
- assert(gap.missing.includes('Leadership'));
-});
-test('local tailoring only reorders existing evidence',()=>{
- const p=demoProfile();
- const before=structuredClone(p);
- const draft=tailorLocally(p,'Docker');
- assert.equal(draft.skills[0].category.en,'Tools');
- assert.deepEqual(p,before);
- assert.deepEqual(draft.skills.map(x=>x.id).sort(),p.skills.map(x=>x.id).sort());
- assert.deepEqual(draft.experience,p.experience);
-});
-
 test('chronological layout puts current roles first and excludes hidden entries',()=>{
  const entries=[
   {...newEntry(),id:'old',start:'2020-01',end:'2022-01'},
@@ -97,14 +69,11 @@ test('birth date spacing and employment types are validated and migrate safely',
  profile.experience[0].employmentType='Contract';
  assert.equal(workspaceSchema.safeParse({...blankWorkspace(),profile}).success,false);
 });
-test('legacy skills migrate to category and grouped items remain searchable',()=>{
+test('legacy skills migrate to category and retain grouped items',()=>{
  const old=blankWorkspace();
  old.profile.skills=[{id:'old-skill',name:{en:'FastAPI, NumPy',de:'FastAPI, NumPy'},included:true}];
  const migrated=workspaceSchema.parse(old);
  assert.deepEqual(migrated.profile.skills[0].category,{en:'',de:''});
- const result=matchJob(migrated.profile,'Experience with NumPy and FastAPI is required.');
- assert(result.matched.includes('NumPy'));
- assert(result.matched.includes('FastAPI'));
 });
 
 test('legacy profiles receive typography defaults and invalid CV settings are rejected',()=>{
@@ -181,7 +150,6 @@ test('local API persists snapshots, detects stale writes, and rejects invalid or
  const realFetch=globalThis.fetch;
  const previousKey=process.env.OPENAI_API_KEY;
  process.env.OPENAI_API_KEY='test-key-not-real';
- let invalidIds=false;
  let externalCalls=0;
  globalThis.fetch=async(input,options)=>{
   if(input==='https://api.openai.com/v1/responses'){
@@ -198,21 +166,6 @@ test('local API persists snapshots, detects stale writes, and rejects invalid or
     const translations=Object.fromEntries(payload.fields.map(field=>[field.key,field.key==='summary'?'Geprüfte Übersetzung.':profileTextFields(state.profile).find(item=>item.key===field.key).value.de]));
     return Response.json({status:'completed',output:[{content:[{type:'output_text',text:JSON.stringify({translations})}]}]});
    }
-   assert.equal(payload.profile.personal,undefined);
-   assert.equal(payload.profile.photo,undefined);
-   const p=payload.profile;
-   const edits={
-    headline:p.headline,
-    summary:{...p.summary,de:'Geprüfte Übersetzung.'},
-    interests:p.interests,
-    entries:['experience','internships','education','projects','certifications'].flatMap(k=>p[k].map(e=>({id:invalidIds?'invented-id':e.id,title:e.title,description:e.description}))),
-    skills:p.skills.map(e=>({id:e.id,category:e.category,name:e.name})),
-    languages:p.languages.map(e=>({id:e.id,name:e.name})),
-    coverLetter:{en:'',de:''},
-    recommendations:[],
-    reasoning:[]
-   };
-   return Response.json({status:'completed',output:[{content:[{type:'output_text',text:JSON.stringify(edits)}]}]});
   }
   return realFetch(input,options);
  };
@@ -226,10 +179,9 @@ test('local API persists snapshots, detects stale writes, and rejects invalid or
   assert.equal(suggestion.profile.summary.de,'Geprüfte Übersetzung.');
   const translationCalls=externalCalls;
   assert(translationCalls>1,'Translation must cover the CV in bounded batches');
-  invalidIds=true;
   const invalidAssist=await fetch(base+'/api/assist',{method:'POST',body:JSON.stringify({profile:state.profile,jobDescription:'Python developer',action:'tailor',provider:'openai'})});
-  assert.equal(invalidAssist.status,500);
-  assert.equal(externalCalls,translationCalls+1);
+  assert.equal(invalidAssist.status,400);
+  assert.equal(externalCalls,translationCalls);
  }finally{
   globalThis.fetch=realFetch;
   if(previousKey===undefined)delete process.env.OPENAI_API_KEY;else process.env.OPENAI_API_KEY=previousKey;
@@ -251,107 +203,6 @@ test('personal details migrate date of birth and custom fields safely',()=>{
  assert.equal(missingTranslations(profile,'de'),2);
  profile.personal.dateOfBirth='1992-14-01';
  assert.equal(workspaceSchema.safeParse({...blankWorkspace(),profile}).success,false);
-});
-
-test('Ollama provider reads the CV and applies only validated field patches',async(t)=>{
- const {handleApi}=await import('../server/api.mjs');
- const server=http.createServer(async(req,res)=>{if(!await handleApi(req,res)){res.writeHead(404);res.end();}});
- await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
- t.after(async()=>{await new Promise(resolve=>server.close(resolve));});
- const base='http://127.0.0.1:'+server.address().port;
- const realFetch=globalThis.fetch;
- const previousModel=process.env.OLLAMA_MODEL;
- const previousBase=process.env.OLLAMA_BASE_URL;
- const previousOpenAIKey=process.env.OPENAI_API_KEY;
- process.env.OPENAI_API_KEY='configured-but-local-should-win';
- process.env.OLLAMA_MODEL='cv-test-model';
- process.env.OLLAMA_BASE_URL='http://127.0.0.1:11434';
- let tagCalls=0,chatCalls=0;
- globalThis.fetch=async(input,options)=>{
-  const url=String(input);
-  if(url==='http://127.0.0.1:11434/api/tags'){tagCalls++;return Response.json({models:[{name:'cv-test-model',model:'cv-test-model',reviewLanguage:'en'}]});}
-  if(url==='http://127.0.0.1:11434/api/chat'){
-   chatCalls++;
-   const request=JSON.parse(options.body);
-   assert.equal(request.model,'cv-test-model');
-   assert.equal(request.stream,false);
-   assert.equal(request.options.temperature,0);
-   assert.equal(request.format.type,'object');
-   const rawPrompt=request.messages[1].content;
-   assert.equal(rawPrompt.includes('alex@example.com'),false);
-   assert.equal(rawPrompt.includes('data:image'),false);
-   const payload=JSON.parse(rawPrompt.split('\nReturn only the requested changes object.')[0]);
-   assert.equal(payload.action,'tailor');
-   assert.equal(payload.reviewLanguage,'en');
-   assert.equal(payload.profile.personal,undefined);
-   const profile=payload.profile;
-    const descriptionKey=profile.experience[0].descriptionKey;
-    const projectDescriptionKey=profile.projects[0].descriptionKey;
-    const skillNameKey=profile.skills[0].nameKey;
-    const allowedKeys=request.format.properties.changes.items.properties.key.enum;
-    assert(allowedKeys.includes(descriptionKey));
-    assert(allowedKeys.includes(projectDescriptionKey));
-    assert(allowedKeys.includes(skillNameKey));
-    assert.equal(allowedKeys.some(key=>key==='headline'||key==='summary'||key.startsWith('education.')||key.startsWith('certifications.')||key.startsWith('languages.')),false);   assert.equal(request.format.required.includes('experienceChanges'),true);
-   assert.equal(request.format.properties.experienceChanges.minItems,1);
-   assert(request.format.properties.experienceChanges.items.properties.key.enum.includes(descriptionKey));
-   assert.equal(request.format.required.includes('reasoning'),true);
-   assert.equal(request.format.properties.reasoning.minItems,1);
-   assert.equal(rawPrompt.includes('Example Engineering GmbH'),true);
-   const edits={
-    experienceChanges:[
-     {key:descriptionKey,value:{en:'Developed Python automation tools aligned with software delivery requirements.\nCollaborated across functions on software delivery.\nBuilt automated data analysis workflows.\nSupported reliable engineering handoffs.\nThis fifth generated point must be removed.',de:'Python-Automatisierungswerkzeuge für die Softwarebereitstellung entwickelt.\nFunktionsübergreifend an der Softwarebereitstellung zusammengearbeitet.\nAutomatisierte Datenanalyse-Workflows aufgebaut.\nZuverlässige technische Übergaben unterstützt.\nDieser fünfte generierte Punkt muss entfernt werden.'}},
-     {key:'invented-field-key',value:{en:'Ignored',de:'Ignoriert'}}
-    ],
-     changes:[
-      {key:projectDescriptionKey,value:{en:'Built a Python computer-vision utility aligned with the role.\nApplied existing automation experience to practical delivery.',de:'Ein Python-Bildverarbeitungswerkzeug passend zur Stelle entwickelt.\nVorhandene Automatisierungserfahrung praktisch eingesetzt.'}},
-      {key:skillNameKey,value:{en:'SQL, Python',de:'SQL, Python'}}
-     ],
-    coverLetter:{en:'',de:''},
-    recommendations:[],
-    reasoning:['Existing Python automation evidence aligns with the JD requirement for reliable software delivery.']
-   };
-   return Response.json({done:true,message:{role:'assistant',content:JSON.stringify(edits)}});
-  }
-  return realFetch(input,options);
- };
- try{
-  const status=await realFetch(base+'/api/ai/status');
-  assert.equal(status.status,200);
-  const providers=await status.json();
-  assert.equal(providers.ollama.reachable,true);
-  assert(providers.ollama.models.includes('cv-test-model'));
-   const profile=demoProfile();
-   profile.projects=[{...newEntry(),id:'project-one',title:{en:'Python vision utility',de:'Python-Bildverarbeitungswerkzeug'},description:{en:'Built a Python computer-vision utility for automated analysis.',de:'Ein Python-Bildverarbeitungswerkzeug für automatisierte Analysen entwickelt.'}}];
-  const response=await realFetch(base+'/api/assist',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({profile,jobDescription:'Python and Kubernetes experience required.',action:'tailor',provider:'auto',model:'cv-test-model'})});
-  assert.equal(response.status,200);
-  const result=await response.json();
-  assert.equal(result.provider,'ollama');
-  assert.equal(result.model,'cv-test-model');
-  assert.equal(result.profile.personal.email,profile.personal.email);
-  assert.equal(result.changedFields,3);
-  assert.match(result.profile.experience[0].description.en,/Python automation tools/);
-  assert.equal(result.profile.experience[0].description.en.split('\n').length,4);
-  assert.equal(result.profile.experience[0].description.de.split('\n').length,4);
-  assert.equal(result.profile.experience[0].description.en.includes('fifth generated point'),false);
-   assert.match(result.profile.projects[0].description.en,/Python computer-vision utility/);
-   assert.equal(result.profile.skills[0].name.en,'SQL, Python');
-   assert.deepEqual(result.profile.summary,profile.summary);
-   assert.deepEqual(result.profile.education,profile.education);
-  assert.equal(result.reasoning.length,1);
-  assert.match(result.reasoning[0],/existing Python automation evidence/i);
-  assert.equal(result.profile.experience.length,profile.experience.length);
-  assert.deepEqual(result.profile.experience[0].organization,profile.experience[0].organization);
-  assert.equal(result.recommendations.length,1);
-  assert.match(result.recommendations[0],/Kubernetes/);
-  assert.equal(chatCalls,1);
-  assert(tagCalls>=2);
- }finally{
-  globalThis.fetch=realFetch;
-  if(previousModel===undefined)delete process.env.OLLAMA_MODEL;else process.env.OLLAMA_MODEL=previousModel;
-  if(previousBase===undefined)delete process.env.OLLAMA_BASE_URL;else process.env.OLLAMA_BASE_URL=previousBase;
-  if(previousOpenAIKey===undefined)delete process.env.OPENAI_API_KEY;else process.env.OPENAI_API_KEY=previousOpenAIKey;
- }
 });
 
 test('legacy workspaces receive automatic AI settings',()=>{

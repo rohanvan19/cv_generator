@@ -1,5 +1,27 @@
 # Verification
 
+Final update verified on 2026-10-30:
+
+- All 40 automated tests and the standard TypeScript check passed.
+- Production build passed after adding duplicate/delete application-card actions.
+- Signature tests cover saved image reuse, visibility, proportional resizing, placement below the name, and invalid image handling. Dates use a two-digit day and full English month.
+- Application duplication tests verify copied content, new identity and Draft status, backup round trips, and independence from the original application and master profile.
+- The desktop launcher was tested without opening a browser; the server was then stopped again.
+
+German cover-letter template verified on 2026-10-30:
+
+- TypeScript, production build, and all 38 automated tests passed.
+- Tests cover legacy workspace migration, saved template round trips, leading-zero postal codes, valid calendar dates, PDF reading order/alignment, long-text pagination, and the dedicated PDF API with input and origin checks.
+- Visually inspected standard, long-address/subject, and two-page PDF fixtures. Text extraction confirmed no horizontal overflow in the long-address fixture.
+- Browser verification used an isolated workspace: entered all sender/recipient fields, date, subject and body; downloaded a PDF; reloaded and confirmed the saved data remained.
+
+Custom sections verified on 2026-10-28:
+
+- Production build and TypeScript passed; 33 automated tests passed.
+- New tests cover legacy migration, independent application copies, section/order validation, translation and selective acceptance, included requirement evidence, bilingual PDF output with chronology and employment types, and persistence/PDF API round trips.
+- Browser checks used an isolated workspace on port 4311: creating a bilingual section, adding and editing an experience-style entry, choosing employment type, arranging/resetting sections, saving, reloading, and viewing the generated PDF all passed.
+- Targeted lint still reports pre-existing issues in the existing photo controls, page hooks/imports, PDF control-character regex, and deprecated API schema methods.
+
 Completed on 2026-09-04.
 
 - Production build: passed (Vinext static export).

@@ -62,5 +62,5 @@ export async function translateProfile(profile,targetLanguage,generate){
   }
   if(pending.length)throw new Error('Translation incomplete for: '+pending.map(field=>field.label).join(', ')+'. No changes were applied. Try again or choose another local model.');
  }
- return {profile:profileSchema.parse(next),coverLetter:{en:'',de:''},recommendations:[],reasoning:[],provider,model,translation:{targetLanguage,fieldCount:fields.length,retriedFields}};
+ return {profile:profileSchema.parse(next),coverLetter:{en:'',de:''},provider,model,translation:{targetLanguage,fieldCount:fields.length,retriedFields}};
 }

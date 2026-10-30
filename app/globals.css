@@ -22,17 +22,16 @@ body{font-family:Inter,Arial,Helvetica,sans-serif;}.app-shell{gap:0!important;}.
 
 .personal-custom-list{margin-top:23px;padding-top:23px;border-top:1px solid var(--border)}.custom-field-edit:last-child{padding-bottom:0;margin-bottom:0;border-bottom:0}.custom-field-edit>.field{flex-basis:180px}
 
-.ai-settings-fields{margin-top:20px}.recommendation-box{border:1px solid #d9e4f7;background:#f5f8ff;border-radius:9px;padding:18px;margin:18px 0 24px}.recommendation-box h3{font-size:15px;margin-bottom:7px}.recommendation-box p{font-size:12px;line-height:1.6;color:#687991}.recommendation-box ul{margin:13px 0 0;padding-left:20px;color:#354762;font-size:13px;line-height:1.7}
+.ai-settings-fields{margin-top:20px}.recommendation-box{border:1px solid #d9e4f7;background:#f5f8ff;border-radius:9px;padding:18px;margin:18px 0 24px}
 .preview-options{flex-wrap:wrap;gap:12px 16px}.typography-dialog{max-width:500px!important;padding:26px!important}.typography-options{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:10px 0 16px}.typography-setting{display:flex;flex-direction:column;gap:8px;color:#53627a;font-size:13px}.typography-setting .choice{width:100%;justify-content:space-between}@media(max-width:640px){.typography-options{grid-template-columns:1fr}.typography-dialog{padding:20px!important}}
 .editor-tabs{min-width:0}.editor-tabs>.section-tabs{display:flex!important;flex-direction:row!important;align-items:center!important;justify-content:flex-start!important;flex-wrap:nowrap!important;width:100%!important;height:45px!important;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin}.editor-tabs>.section-tabs>[data-slot=tabs-trigger]{flex:0 0 auto!important;width:auto!important;justify-content:center!important;align-items:center!important}
+.custom-section-actions{display:flex;justify-content:flex-end;margin-bottom:12px}.section-tabs [data-slot=tabs-trigger]{max-width:240px;overflow:hidden;text-overflow:ellipsis}.section-order-row>span{overflow-wrap:anywhere;min-width:0}
 
 .match-groups{display:grid;gap:14px;margin-top:14px}
 .match-group{border-top:1px solid #e4eaf3;padding-top:12px}
-.match-group:first-child{border-top:0;padding-top:0}
 .match-group-title{font-size:12px;font-weight:650;color:#4b5f79;margin:0 0 8px}
 .match-results{display:flex;flex-direction:column;gap:8px;margin-top:9px}
 .match-result{display:flex;align-items:flex-start;gap:9px;flex-wrap:wrap}
-.match-result .chip{flex:0 0 auto}
 .match-evidence{font-size:12px;line-height:1.55;color:#6f8096;padding-top:3px;flex:1;min-width:180px}
 .related{background:#edf3ff;color:#496aab;border-color:#d5e0f4}
 .match-ai-note{font-size:12px;line-height:1.55;color:#526987;background:#eef3fa;border-radius:6px;padding:9px 11px;margin-top:14px}
@@ -51,3 +50,9 @@ body{font-family:Inter,Arial,Helvetica,sans-serif;}.app-shell{gap:0!important;}.
 .change-source { grid-column: 1 / -1; padding: 12px; border-radius: 8px; background: #f5f6fa; }
 .change-source small { font-weight: 600; color: #667085; }
 .change-source p { white-space: pre-wrap; overflow-wrap: anywhere; margin: 6px 0 0; }
+
+.letter-today{display:flex;align-items:flex-end}.letter-workspace textarea{min-height:250px}.letter-layout-note{margin:10px 0 18px}.letter-workspace .preview-toolbar{display:flex;justify-content:space-between;gap:12px}@media(max-width:640px){.rail-nav{flex-wrap:wrap}.rail-nav .rail-item{flex-basis:calc(50% - 4px)}.letter-today{align-items:center}}
+
+.application-card{display:flex;flex-direction:column;}.application-card-open{display:block;width:100%;flex:1;text-align:left;cursor:pointer;border-radius:4px;}.application-card-open:focus-visible{outline:2px solid #275bea;outline-offset:5px;}.application-card-open>p{font-size:14px;color:#748499;margin-top:6px;}.application-card-duplicate{align-self:flex-start;margin-top:10px;padding-left:0;padding-right:8px;font-size:12px;}
+
+.application-card-actions{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px;}.application-card-actions .application-card-duplicate{margin-top:0;}.application-card-delete{color:#a74052;}.application-card-delete:hover{background:#fff0f1;color:#8e293a;}
