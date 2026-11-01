@@ -1,4 +1,6 @@
 import {z} from 'zod';
+export const signatureSchema=z.object({enabled:z.boolean(),size:z.number().min(25).max(200).default(100),image:z.string().max(3000000).refine(value=>value===''||/^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]+$/.test(value),'Choose a PNG or JPG signature image')}).default({enabled:false,size:100,image:''});
+export type Signature=z.infer<typeof signatureSchema>;
 
 const addressFields={address:z.string().max(400),postalCode:z.string().max(30),city:z.string().max(200),country:z.string().max(100)};
 const dateSchema=z.string().refine(value=>{
@@ -8,13 +10,15 @@ const dateSchema=z.string().refine(value=>{
  return !Number.isNaN(parsed.getTime())&&parsed.toISOString().slice(0,10)===value;
 },'Enter a valid date');
 export const coverLetterTemplateSchema=z.object({
+ documentTitle:z.string().max(120).default('COVER LETTER'),
  sender:z.object({name:z.string().max(200),...addressFields,phone:z.string().max(100),email:z.string().max(300)}),
  recipient:z.object({company:z.string().max(300),attention:z.string().max(200),...addressFields}),
  date:dateSchema,subject:z.string().max(300),salutation:z.string().max(200),body:z.string().max(24000),closing:z.string().max(100),
- signature:z.object({enabled:z.boolean(),size:z.number().min(25).max(200).default(100),image:z.string().max(3000000).refine(value=>value===''||/^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]+$/.test(value),'Choose a PNG or JPG signature image')}).default({enabled:false,size:100,image:''}),
+ signature:signatureSchema,
 });
 export type CoverLetterTemplate=z.infer<typeof coverLetterTemplateSchema>;
 export function blankCoverLetterTemplate():CoverLetterTemplate{return {
+ documentTitle:'COVER LETTER',
  sender:{name:'',address:'',postalCode:'',city:'',country:'',phone:'',email:''},
  recipient:{company:'',attention:'',address:'',postalCode:'',city:'',country:''},
  date:'',subject:'',salutation:'Sehr geehrte Damen und Herren,',body:'',closing:'Mit freundlichen Grüßen',

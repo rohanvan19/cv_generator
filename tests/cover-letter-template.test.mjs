@@ -39,7 +39,9 @@ test('German letter PDF uses a left-aligned date, justified paragraphs and compa
   assert.equal((pdf.toString('latin1').match(/\/Type \/Page\b/g)||[]).length,1);
   const sender=rendered.find(item=>item.text===letter.sender.name),company=rendered.find(item=>item.text===letter.recipient.company),date=rendered.find(item=>item.text==='Dresden, 30 October 2026'),subject=rendered.find(item=>item.text.startsWith('Bewerbung als Softwareentwickler'));
   assert(sender.y<company.y&&company.y<date.y&&date.y<subject.y);assert(sender.x>company.x&&date.x===company.x);
-  const senderLines=rendered.filter(item=>item.y<company.y);
+  const header=rendered.find(item=>item.text==='COVER LETTER');
+  assert(header&&header.y<sender.y&&header.x===company.x);
+  const senderLines=rendered.filter(item=>item.y<company.y&&item.text!=='COVER LETTER');
   assert.deepEqual(senderLines.map(item=>item.text),[letter.sender.name,letter.sender.address,'01234 Dresden,','Deutschland',letter.sender.phone,letter.sender.email]);
   assert(senderLines.every(item=>item.x===sender.x&&item.x>300));
   assert(Math.abs(senderLines.at(-1).right-538)<0.1);

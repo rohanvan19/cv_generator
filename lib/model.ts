@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import {coverLetterTemplateSchema,blankCoverLetterTemplate} from './cover-letter.ts';
+import {coverLetterTemplateSchema,blankCoverLetterTemplate,signatureSchema} from './cover-letter.ts';
 export const biSchema = z.object({ en:z.string().max(24000), de:z.string().max(24000) });
 export type Bi = z.infer<typeof biSchema>;
 export type Lang = 'en'|'de';
@@ -14,6 +14,9 @@ export type SectionId=BuiltinSectionId|CustomSectionId;
 export const employmentTypes=['','Full-time','Part-time','Internship'] as const;
 export type EmploymentType=(typeof employmentTypes)[number];
 export const defaultSectionOrder:SectionId[]=[...sectionIds];
+export const defaultEditorSectionOrder=['personal','summary','signature','experience','internships','education','certifications','projects','skills','languages','interests'] as const;
+export type EditorSectionId='personal'|'signature'|SectionId;
+const editorSectionOrderSchema=z.array(z.union([z.enum(defaultEditorSectionOrder),z.templateLiteral(['custom:',z.string().regex(/^[A-Za-z0-9_-]{1,100}$/)])])).max(31).refine(order=>new Set(order).size===order.length,'Editor sections must be unique').default([...defaultEditorSectionOrder]);
 const sectionOrderSchema=z.preprocess(value=>{
  // Add the new section to complete legacy orders without resetting the user's arrangement.
  if(Array.isArray(value)&&value.length===sectionIds.length-1&&new Set(value).size===value.length&&value.every(section=>section!=='internships'&&sectionIds.includes(section))){
@@ -33,8 +36,9 @@ export const profileSchema = z.object({
  customSections:z.array(customSectionSchema).max(20).default([]),
  skills:z.array(z.object({id:z.string().max(100),category:z.object({en:z.string().max(500),de:z.string().max(500)}).default({en:'',de:''}),name:biSchema,included:z.boolean()})).max(150),
  languages:z.array(z.object({id:z.string().max(100),name:biSchema,level:z.enum(['A1','A2','B1','B2','C1','C2','Native']),included:z.boolean()})).max(30),interests:biSchema,
+ signature:signatureSchema,
  photo:z.object({original:photoData,cropped:photoData,x:z.number().min(0).max(100),y:z.number().min(0).max(100),zoom:z.number().min(1).max(3)}),
- settings:z.object({language:z.enum(['en','de']),showPhoto:z.boolean(),compact:z.boolean(),showInterests:z.boolean(),showSummary:z.boolean(),fontFamily:z.enum(['inter','arial','times']).default('inter'),fontSize:z.number().int().min(8).max(12).default(10),sectionOrder:sectionOrderSchema})
+ settings:z.object({documentTitle:z.object({en:z.string().max(120),de:z.string().max(120)}).default({en:'CURRICULUM VITAE',de:'LEBENSLAUF'}),language:z.enum(['en','de']),showPhoto:z.boolean(),compact:z.boolean(),showInterests:z.boolean(),showSummary:z.boolean(),fontFamily:z.enum(['inter','arial','times']).default('inter'),fontSize:z.number().int().min(8).max(12).default(10),sectionOrder:sectionOrderSchema,editorSectionOrder:editorSectionOrderSchema})
 }).superRefine((profile,ctx)=>{
  const ids=profile.customSections.map(section=>customSectionKey(section.id));
  if(new Set(ids).size!==ids.length)ctx.addIssue({code:'custom',path:['customSections'],message:'Custom section identifiers must be unique'});
@@ -52,11 +56,11 @@ export const bi=(en='',de=''):Bi=>({en,de});
 export const newId=()=>globalThis.crypto.randomUUID();
 export const customSectionKey=(id:string):CustomSectionId=>`custom:${id}`;
 export function newCustomSection(title:Bi=bi()):CustomSection{return {id:newId(),title,included:true,entries:[]};}
-export function addCustomSection(profile:Profile,section:CustomSection):Profile{return {...profile,customSections:[...profile.customSections,section],settings:{...profile.settings,sectionOrder:[...profile.settings.sectionOrder,customSectionKey(section.id)]}};}
-export function removeCustomSection(profile:Profile,id:string):Profile{return {...profile,customSections:profile.customSections.filter(section=>section.id!==id),settings:{...profile.settings,sectionOrder:profile.settings.sectionOrder.filter(key=>key!==customSectionKey(id))}};}
+export function addCustomSection(profile:Profile,section:CustomSection):Profile{return {...profile,customSections:[...profile.customSections,section],settings:{...profile.settings,sectionOrder:[...profile.settings.sectionOrder,customSectionKey(section.id)],editorSectionOrder:[...profile.settings.editorSectionOrder,customSectionKey(section.id)]}};}
+export function removeCustomSection(profile:Profile,id:string):Profile{return {...profile,customSections:profile.customSections.filter(section=>section.id!==id),settings:{...profile.settings,sectionOrder:profile.settings.sectionOrder.filter(key=>key!==customSectionKey(id)),editorSectionOrder:profile.settings.editorSectionOrder.filter(key=>key!==customSectionKey(id))}};}
 export function entryGroups(profile:Profile){return [...entrySectionIds.map(id=>({id:id as EntrySection|CustomSectionId,entries:profile[id],included:true})),...profile.customSections.map(section=>({id:customSectionKey(section.id),entries:section.entries,included:section.included}))];}
 export function sectionLabel(profile:Profile,id:SectionId,lang:Lang):string{return id.startsWith('custom:')?text(profile.customSections.find(section=>customSectionKey(section.id)===id)?.title||bi(),lang)||(lang==='de'?'Eigener Abschnitt':'Custom section'):cvLabels[lang][id as BuiltinSectionId];}
-export function blankProfile():Profile{return {personal:{name:'',email:'',phone:'',dateOfBirth:'',location:bi(),address:'',website:'',linkedin:'',customFields:[]},headline:bi(),summary:bi(),customSections:[],experience:[],internships:[],education:[],projects:[],certifications:[],skills:[],languages:[],interests:bi(),photo:{original:'',cropped:'',x:50,y:50,zoom:1},settings:{language:'de',showPhoto:true,compact:false,showInterests:true,showSummary:true,fontFamily:'inter',fontSize:10,sectionOrder:[...defaultSectionOrder]}};}
+export function blankProfile():Profile{return {personal:{name:'',email:'',phone:'',dateOfBirth:'',location:bi(),address:'',website:'',linkedin:'',customFields:[]},headline:bi(),summary:bi(),customSections:[],experience:[],internships:[],education:[],projects:[],certifications:[],skills:[],languages:[],interests:bi(),photo:{original:'',cropped:'',x:50,y:50,zoom:1},signature:{enabled:false,size:100,image:''},settings:{documentTitle:{en:'CURRICULUM VITAE',de:'LEBENSLAUF'},language:'de',showPhoto:true,compact:false,showInterests:true,showSummary:true,fontFamily:'inter',fontSize:10,sectionOrder:[...defaultSectionOrder],editorSectionOrder:[...defaultEditorSectionOrder]}};}
 export function blankWorkspace():Workspace{return {version:1,profile:blankProfile(),coverLetterTemplate:blankCoverLetterTemplate(),applications:[],uiLanguage:'en',aiSettings:{provider:'auto',ollamaModel:''}};}
 export function newEntry(employmentType:EmploymentType=''):Entry{return {id:newId(),title:bi(),organization:bi(),location:bi(),employmentType,start:'',end:'',current:false,description:bi(),included:true};}
 export function newApplication(profile:Profile,company='',role=''):Application{return {id:newId(),company,role,status:'Draft',createdAt:new Date().toISOString(),draft:structuredClone(profile),coverLetter:bi()};}

@@ -2,6 +2,7 @@ import PDFDocument from 'pdfkit';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {coverLetterTemplateSchema,germanLetterDate} from '../lib/cover-letter.ts';
+import {prepareSignature} from './signature-image.mjs';
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 // A4 business-letter layout inspired by DIN 5008; preview and export share this renderer.
@@ -46,6 +47,9 @@ export async function createCoverLetterPdf(input){
   y+=gap;
  }
  const sender=letter.sender,recipient=letter.recipient;
+ if(clean(letter.documentTitle)){
+  font(8,true);doc.fillColor('#637083').text(clean(letter.documentTitle),left,y,{width,characterSpacing:2});y=Math.max(y+26,doc.y+12);
+ }
  font();
  const email=clean(sender.email);
  const senderWidth=email?Math.min(width/2,doc.widthOfString(email)+0.01):180;
@@ -67,15 +71,7 @@ export async function createCoverLetterPdf(input){
    y+=12;
   }
  }
- let signature;
- if(letter.signature.enabled&&letter.signature.image){
-  try{
-   const image=doc.openImage(letter.signature.image);
-   if(!(image.width>0&&image.height>0)||image.width*image.height>16000000)throw new Error('Invalid image dimensions');
-   const scale=Math.min(150/image.width,55/image.height)*letter.signature.size/100;
-   signature={image,width:image.width*scale,height:image.height*scale};
-  }catch{throw Object.assign(new Error('Could not read the signature image. Upload a valid PNG or JPG.'),{status:400});}
- }
+ const signature=prepareSignature(doc,letter.signature);
  // Keep the closing, typed name and optional signature together.
  const closingHeight=(letter.closing?wrapped(letter.closing,width,10.5).length*15.225:0)+(sender.name?wrapped(sender.name,width,10.5).length*15.225:0)+(signature?signature.height+6:0)+10;
  ensure(Math.min(closingHeight,bottom-82));

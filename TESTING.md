@@ -1,5 +1,13 @@
 # Verification
 
+Editor layout and document customization verified on 2026-11-01:
+
+- All 46 automated tests and the standard TypeScript check passed; production build passed.
+- Browser checks covered paired section headers, full-width active panels, automatic scrolling, neutral tab styling, neighboring-tab spacing, and the mobile single-column layout.
+- Dragging and keyboard controls swap editor headers; reloading preserves the layout independently for each profile/application. Custom sections are supported. PDF section order is controlled separately through Arrange.
+- CV signatures support upload, visibility and proportional sizing without repeating the typed name. CV and cover-letter headings are editable, persist with saved data, and render in the generated PDF.
+- Removed temporary verification screenshots, PDF fixtures, one-off editing scripts and stale caches after verification. Saved user data and the current runnable build were retained.
+
 Final update verified on 2026-10-30:
 
 - All 40 automated tests and the standard TypeScript check passed.
@@ -37,4 +45,4 @@ Completed on 2026-09-04.
 
 Limits: live paid OpenAI requests were not made. Local generation speed depends on the selected Ollama model, prompt complexity and this computer; the latest verified gemma3:latest request took 112 seconds. Browser interaction testing and the optional WebMCP browser contract were not run.
 
-Test fixtures are fictional and stored under tmp/pdfs. The test API saves to an isolated operating-system temporary folder, never the active workspace.
+PDF fixtures used fictional data and were removed after verification. The test API saves to an isolated operating-system temporary folder, never the active workspace.

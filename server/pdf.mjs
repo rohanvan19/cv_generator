@@ -1,4 +1,5 @@
 import PDFDocument from 'pdfkit';
+import {prepareSignature} from './signature-image.mjs';
 import path from 'node:path';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -50,7 +51,10 @@ export async function createPdf(profile,{coverLetter,company='',role=''}={}){
   }
  }
  function safeLink(s){try{const u=new URL(s.startsWith('http')?s:'https://'+s);return ['http:','https:'].includes(u.protocol)?u.href:undefined;}catch{return undefined;}}
- setFont(true,8);doc.fillColor('#637083').text(coverLetter?(lang==='de'?'ANSCHREIBEN':'COVER LETTER'):labels.cv,left,y,{characterSpacing:2});y+=pt(26);
+ const documentTitle=coverLetter?(lang==='de'?'ANSCHREIBEN':'COVER LETTER'):(profile.settings.documentTitle?.[lang]??labels.cv);
+ if(clean(documentTitle)){
+  setFont(true,8);doc.fillColor('#637083').text(clean(documentTitle),left,y,{width:!coverLetter&&profile.settings.showPhoto&&profile.photo.cropped?393:507,characterSpacing:2});y=Math.max(y+pt(26),doc.y+pt(12));
+ }
  const portrait=!coverLetter&&profile.settings.showPhoto&&profile.photo.cropped;
  const headerWidth=portrait?393:507;
  if(portrait){doc.image(Buffer.from(portrait.split(',')[1],'base64'),459,44,{width:92,height:115});}
@@ -113,6 +117,13 @@ export async function createPdf(profile,{coverLetter,company='',role=''}={}){
    if(section==='skills'){const skills=profile.skills.filter(skill=>skill.included&&text(skill.name,lang));if(skills.length){heading(labels.skills);for(const skill of skills)row(text(skill.category,lang),text(skill.name,lang));}continue;}
    if(section==='languages'){const languages=profile.languages.filter(language=>language.included&&text(language.name,lang));if(languages.length){heading(labels.languages);languageGrid(languages);}continue;}
    if(section==='interests'&&profile.settings.showInterests&&text(profile.interests,lang)){heading(labels.interests);row('',text(profile.interests,lang));}
+  }
+ }
+ if(!coverLetter){
+  const signature=prepareSignature(doc,profile.signature);
+  if(signature){
+   room(pt(12)+signature.height);y+=pt(12);
+   doc.image(signature.image,left,y,{width:signature.width,height:signature.height});y+=signature.height;
   }
  }
  const pages=doc.bufferedPageRange();for(let i=0;i<pages.count;i++){doc.switchToPage(i);const previousBottom=doc.page.margins.bottom;doc.page.margins.bottom=0;setFont(false,7.5);doc.fillColor('#7a8491').text(labels.page+' '+(i+1)+' / '+pages.count,left,810,{width:507,align:'right',lineBreak:false});doc.page.margins.bottom=previousBottom;}
